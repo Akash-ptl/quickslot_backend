@@ -8,16 +8,41 @@ URL = "http://127.0.0.1:8000/bookings"
 payload = {
     "venue_id": 1,
     "date": "2026-06-12",
-    "slot_time": "09:00"
+    "slot_time": "10:00"  # Changed to 10:00 to avoid conflicting with the previous test
 }
 data = json.dumps(payload).encode("utf-8")
 
+# In-memory storage for user tokens
+user_tokens = {}
+
+def get_token(user_id):
+    login_url = "http://127.0.0.1:8000/auth/login"
+    login_payload = json.dumps({
+        "user_id": user_id,
+        "password": "password123"
+    }).encode("utf-8")
+    
+    req = urllib.request.Request(
+        login_url,
+        data=login_payload,
+        headers={"Content-Type": "application/json"},
+        method="POST"
+    )
+    try:
+        with urllib.request.urlopen(req) as response:
+            resp_body = json.loads(response.read().decode("utf-8"))
+            return resp_body["access_token"]
+    except Exception as e:
+        print(f"Failed to login user {user_id}: {e}")
+        return None
+
 def book_slot(user_id):
+    token = user_tokens.get(user_id)
     req = urllib.request.Request(
         URL, 
         data=data, 
         headers={
-            "X-User-Id": str(user_id),
+            "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         },
         method="POST"
@@ -36,7 +61,17 @@ def book_slot(user_id):
 
 def main():
     print("Starting concurrency test...")
-    print(f"Sending 5 parallel booking requests for the same slot (Venue 1, Date: 2026-06-12, Time: 09:00)...")
+    
+    print("Pre-fetching auth tokens for test users (1 to 5)...")
+    for user_id in range(1, 6):
+        token = get_token(user_id)
+        if token:
+            user_tokens[user_id] = token
+        else:
+            print("Failed to get tokens for all test users. Aborting test.")
+            return
+
+    print(f"Sending 5 parallel booking requests for the same slot (Venue 1, Date: 2026-06-12, Time: 10:00)...")
 
     # Use ThreadPoolExecutor to trigger requests at the same time
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:

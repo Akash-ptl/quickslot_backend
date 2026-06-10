@@ -9,6 +9,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
+    hashed_password = Column(String, nullable=False)
 
 class Venue(Base):
     __tablename__ = "venues"

@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from models import Base, User, Venue
+from auth import hash_password
 
 DATABASE_URL = "sqlite:///./quickslot.db"
 
@@ -34,13 +35,15 @@ def init_db():
     try:
         # Seed users if they don't exist
         if db.query(User).count() == 0:
+            default_pw = hash_password("password123")
             default_users = [
-                User(id=1, name="Akash Patel"),
-                User(id=2, name="Judge Alpha"),
-                User(id=3, name="Judge Beta"),
-                User(id=4, name="Test User 4"),
-                User(id=5, name="Test User 5"),
+                User(id=1, name="Akash Patel", hashed_password=default_pw),
+                User(id=2, name="Judge Alpha", hashed_password=default_pw),
+                User(id=3, name="Judge Beta", hashed_password=default_pw),
+                User(id=4, name="Test User 4", hashed_password=default_pw),
+                User(id=5, name="Test User 5", hashed_password=default_pw),
             ]
+
             # TODO(security): Mock users for hackathon demonstration. 
             # In production, implement real user authentication & registration.
             db.add_all(default_users)

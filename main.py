@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from database import get_db, init_db
 from models import User, Venue, Booking
+from auth import verify_password, create_access_token, get_current_user_id
 
 # Initialize DB on startup
 init_db()
@@ -70,6 +71,15 @@ class BookingResponse(BaseModel):
     slot_time: str
     created_at: datetime.datetime
 
+class LoginRequest(BaseModel):
+    user_id: int
+    password: str
+
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str
+    user: UserResponse
+
 # Hourly slots from 6 AM to 10 PM (last slot starts at 9 PM: "21:00")
 ALL_SLOTS = [f"{hour:02d}:00" for hour in range(6, 22)]
 
@@ -80,6 +90,22 @@ def list_venues(db: Session = Depends(get_db)):
 @app.get("/users", response_model=List[UserResponse])
 def list_users(db: Session = Depends(get_db)):
     return db.query(User).all()
+
+@app.post("/auth/login", response_model=LoginResponse)
+def login(req: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == req.user_id).first()
+    if not user or not verify_password(req.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid User ID or password."
+        )
+    
+    access_token = create_access_token(user.id)
+    return LoginResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=UserResponse.from_orm(user)
+    )
 
 @app.get("/venues/{venue_id}/slots", response_model=List[SlotResponse])
 def get_slots(venue_id: int, date: str, db: Session = Depends(get_db)):
@@ -135,19 +161,11 @@ def get_slots(venue_id: int, date: str, db: Session = Depends(get_db)):
 @app.post("/bookings", response_model=BookingResponse, status_code=status.HTTP_201_CREATED)
 def create_booking(
     req: BookingRequest, 
-    x_user_id: str = Header(..., alias="X-User-Id"), 
+    current_user_id: int = Depends(get_current_user_id), 
     db: Session = Depends(get_db)
 ):
-    # Authenticate user from header
-    try:
-        user_id = int(x_user_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
-            detail="Invalid User ID format in X-User-Id header."
-        )
-        
-    user = db.query(User).filter(User.id == user_id).first()
+    # Verify user exists
+    user = db.query(User).filter(User.id == current_user_id).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, 
@@ -171,7 +189,7 @@ def create_booking(
 
     # Create new booking
     new_booking = Booking(
-        user_id=user_id,
+        user_id=current_user_id,
         venue_id=req.venue_id,
         date=req.date,
         slot_time=req.slot_time
@@ -206,7 +224,17 @@ def create_booking(
         )
 
 @app.get("/users/{user_id}/bookings", response_model=List[BookingResponse])
-def get_user_bookings(user_id: int, db: Session = Depends(get_db)):
+def get_user_bookings(
+    user_id: int, 
+    current_user_id: int = Depends(get_current_user_id), 
+    db: Session = Depends(get_db)
+):
+    if current_user_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to view other users' bookings."
+        )
+
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(
@@ -233,12 +261,22 @@ def get_user_bookings(user_id: int, db: Session = Depends(get_db)):
     return response
 
 @app.delete("/bookings/{booking_id}", status_code=status.HTTP_200_OK)
-def cancel_booking(booking_id: int, db: Session = Depends(get_db)):
+def cancel_booking(
+    booking_id: int, 
+    current_user_id: int = Depends(get_current_user_id), 
+    db: Session = Depends(get_db)
+):
     booking = db.query(Booking).filter(Booking.id == booking_id).first()
     if not booking:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
             detail="Booking not found."
+        )
+    
+    if booking.user_id != current_user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to cancel this booking."
         )
     
     try:
