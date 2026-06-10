@@ -33,6 +33,13 @@ def validate_date(date_str: str) -> bool:
         return False
 
 # Pydantic schemas
+class UserResponse(BaseModel):
+    id: int
+    name: str
+
+    class Config:
+        from_attributes = True
+
 class VenueResponse(BaseModel):
     id: int
     name: str
@@ -69,6 +76,10 @@ ALL_SLOTS = [f"{hour:02d}:00" for hour in range(6, 22)]
 @app.get("/venues", response_model=List[VenueResponse])
 def list_venues(db: Session = Depends(get_db)):
     return db.query(Venue).all()
+
+@app.get("/users", response_model=List[UserResponse])
+def list_users(db: Session = Depends(get_db)):
+    return db.query(User).all()
 
 @app.get("/venues/{venue_id}/slots", response_model=List[SlotResponse])
 def get_slots(venue_id: int, date: str, db: Session = Depends(get_db)):
