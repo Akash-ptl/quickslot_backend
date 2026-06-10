@@ -29,6 +29,18 @@ def get_db():
         db.close()
 
 def init_db():
+    # Detect old schema (missing 'email' in 'users' table) and drop tables to start fresh
+    from sqlalchemy import inspect
+    try:
+        inspector = inspect(engine)
+        if "users" in inspector.get_table_names():
+            columns = [c["name"] for c in inspector.get_columns("users")]
+            if "email" not in columns:
+                print("Detected old schema (missing email column in users table). Dropping tables for clean migration...")
+                Base.metadata.drop_all(bind=engine)
+    except Exception as e:
+        print(f"Error during schema check: {e}")
+
     Base.metadata.create_all(bind=engine)
     
     db = SessionLocal()
