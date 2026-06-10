@@ -8,6 +8,16 @@ A secure and concurrency-safe REST API for booking sports venue slots, built wit
 * **Base URL**: [https://quickslot-backend-jdhl.onrender.com](https://quickslot-backend-jdhl.onrender.com)
 * **API Documentation**: [https://quickslot-backend-jdhl.onrender.com/docs](https://quickslot-backend-jdhl.onrender.com/docs) (Swagger UI)
 
+## 📸 Swagger API Docs Screenshot
+<table border="1" cellpadding="5">
+  <tr>
+    <td align="center"><b>FastAPI Swagger Interactive Documentation</b></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/api_docs.png" width="100%" alt="API Swagger Documentation" style="border-radius: 8px; border: 4px solid #1c1c1e;"/></td>
+  </tr>
+</table>
+
 ---
 
 ## 📐 Concurrency Safety & Technical Stack
