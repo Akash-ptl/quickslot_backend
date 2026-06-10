@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 from database import get_db, init_db
 from models import User, Venue, Booking
-from auth import verify_password, create_access_token, get_current_user_id
+from auth import verify_password, create_access_token, get_current_user_id, hash_password
 
 # Initialize DB on startup
 init_db()
@@ -36,6 +36,7 @@ def validate_date(date_str: str) -> bool:
 # Pydantic schemas
 class UserResponse(BaseModel):
     id: int
+    email: str
     name: str
 
     class Config:
@@ -72,8 +73,13 @@ class BookingResponse(BaseModel):
     created_at: datetime.datetime
 
 class LoginRequest(BaseModel):
-    user_id: int
+    email: str = Field(pattern=r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
     password: str
+
+class RegisterRequest(BaseModel):
+    email: str = Field(pattern=r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
+    name: str = Field(min_length=2)
+    password: str = Field(min_length=6)
 
 class LoginResponse(BaseModel):
     access_token: str
@@ -91,13 +97,39 @@ def list_venues(db: Session = Depends(get_db)):
 def list_users(db: Session = Depends(get_db)):
     return db.query(User).all()
 
+@app.post("/auth/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def register(req: RegisterRequest, db: Session = Depends(get_db)):
+    existing_user = db.query(User).filter(User.email == req.email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered."
+        )
+    
+    new_user = User(
+        email=req.email,
+        name=req.name,
+        hashed_password=hash_password(req.password)
+    )
+    db.add(new_user)
+    try:
+        db.commit()
+        db.refresh(new_user)
+        return UserResponse.from_orm(new_user)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to register user: {str(e)}"
+        )
+
 @app.post("/auth/login", response_model=LoginResponse)
 def login(req: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.id == req.user_id).first()
+    user = db.query(User).filter(User.email == req.email).first()
     if not user or not verify_password(req.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid User ID or password."
+            detail="Invalid email or password."
         )
     
     access_token = create_access_token(user.id)

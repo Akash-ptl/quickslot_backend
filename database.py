@@ -37,15 +37,10 @@ def init_db():
         if db.query(User).count() == 0:
             default_pw = hash_password("password123")
             default_users = [
-                User(id=1, name="Akash Patel", hashed_password=default_pw),
-                User(id=2, name="Judge Alpha", hashed_password=default_pw),
-                User(id=3, name="Judge Beta", hashed_password=default_pw),
-                User(id=4, name="Test User 4", hashed_password=default_pw),
-                User(id=5, name="Test User 5", hashed_password=default_pw),
+                User(id=1, email="akash@example.com", name="Akash Patel", hashed_password=default_pw),
             ]
 
-            # TODO(security): Mock users for hackathon demonstration. 
-            # In production, implement real user authentication & registration.
+            # In production, ensure real registration & authentication flow.
             db.add_all(default_users)
             db.commit()
             print("Seeded default users.")

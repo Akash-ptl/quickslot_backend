@@ -8,17 +8,42 @@ URL = "http://127.0.0.1:8000/bookings"
 payload = {
     "venue_id": 1,
     "date": "2026-06-12",
-    "slot_time": "10:00"  # Changed to 10:00 to avoid conflicting with the previous test
+    "slot_time": "11:00"  # Changed to 11:00 to avoid conflicts with previous tests
 }
 data = json.dumps(payload).encode("utf-8")
 
 # In-memory storage for user tokens
 user_tokens = {}
 
-def get_token(user_id):
+def register_user(i):
+    url = "http://127.0.0.1:8000/auth/register"
+    payload = json.dumps({
+        "email": f"testuser{i}@example.com",
+        "name": f"Test User {i}",
+        "password": "password123"
+    }).encode("utf-8")
+    
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST"
+    )
+    try:
+        with urllib.request.urlopen(req) as response:
+            return response.status
+    except urllib.error.HTTPError as e:
+        # 400 Bad Request indicates email already registered, which is fine
+        if e.code == 400:
+            return 200
+        return e.code
+    except Exception:
+        return 500
+
+def get_token(i):
     login_url = "http://127.0.0.1:8000/auth/login"
     login_payload = json.dumps({
-        "user_id": user_id,
+        "email": f"testuser{i}@example.com",
         "password": "password123"
     }).encode("utf-8")
     
@@ -33,7 +58,7 @@ def get_token(user_id):
             resp_body = json.loads(response.read().decode("utf-8"))
             return resp_body["access_token"]
     except Exception as e:
-        print(f"Failed to login user {user_id}: {e}")
+        print(f"Failed to login user {i}: {e}")
         return None
 
 def book_slot(user_id):
@@ -48,7 +73,6 @@ def book_slot(user_id):
         method="POST"
     )
     try:
-        # Measure time of sending
         start_time = time.time()
         with urllib.request.urlopen(req) as response:
             resp_body = response.read().decode("utf-8")
@@ -60,22 +84,25 @@ def book_slot(user_id):
         return 500, str(e), time.time()
 
 def main():
-    print("Starting concurrency test...")
+    print("Starting concurrency test (Email & Password flow)...")
     
+    print("Programmatically registering 5 separate test users...")
+    for i in range(1, 6):
+        register_user(i)
+        
     print("Pre-fetching auth tokens for test users (1 to 5)...")
-    for user_id in range(1, 6):
-        token = get_token(user_id)
+    for i in range(1, 6):
+        token = get_token(i)
         if token:
-            user_tokens[user_id] = token
+            user_tokens[i] = token
         else:
             print("Failed to get tokens for all test users. Aborting test.")
             return
 
-    print(f"Sending 5 parallel booking requests for the same slot (Venue 1, Date: 2026-06-12, Time: 10:00)...")
+    print(f"Sending 5 parallel booking requests for the same slot (Venue 1, Date: 2026-06-12, Time: 11:00)...")
 
     # Use ThreadPoolExecutor to trigger requests at the same time
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        # Submit requests
         futures = {executor.submit(book_slot, user_id): user_id for user_id in range(1, 6)}
         
         results = []
@@ -87,7 +114,7 @@ def main():
             except Exception as e:
                 print(f"User {user_id} failed with error: {e}")
 
-    # Sort results by response arrival/completion
+    # Sort results
     print("\n--- RESULTS ---")
     success_count = 0
     conflict_count = 0
