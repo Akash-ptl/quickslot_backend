@@ -6,12 +6,12 @@ A highly professional, secure, and concurrency-safe REST API for booking sports 
 
 ## 🔗 Live Production Endpoint
 The API is deployed and running live on Render:
-* **Base URL**: `https://quickslot-backend-jdhl.onrender.com`
-* **API Documentation**: `https://quickslot-backend-jdhl.onrender.com/docs` (Swagger UI)
+* **Base URL**: [https://quickslot-backend-jdhl.onrender.com](https://quickslot-backend-jdhl.onrender.com)
+* **API Documentation**: [https://quickslot-backend-jdhl.onrender.com/docs](https://quickslot-backend-jdhl.onrender.com/docs) (Swagger UI)
 
 ---
 
-## 🛠️ Technical Stack & Design Decisions
+## 🛠️ Technical Stack & Design Choices
 
 * **Framework**: FastAPI (async event loop, automatic OpenAPI/Swagger schema generation).
 * **Database**: SQLite (WAL mode enabled with a `5000ms` busy timeout for stable concurrent writes).
@@ -79,7 +79,9 @@ This script pre-registers 5 users, gets their JWT access tokens, and fires **5 p
 
 ---
 
-## 🚀 Deployment Instructions
+## 🚀 Deployment & Local Setup
+* **Production Deployed API**: [https://quickslot-backend-jdhl.onrender.com](https://quickslot-backend-jdhl.onrender.com)
+* **Interactive OpenAPI/Swagger Docs**: [https://quickslot-backend-jdhl.onrender.com/docs](https://quickslot-backend-jdhl.onrender.com/docs)
 
 To spin up the server locally:
 ```bash
